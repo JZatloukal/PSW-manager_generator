@@ -1,0 +1,91 @@
+/* Kontejner pro interaktivní částice */
+.particlesContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
+
+/* Základní plovoucí částice s pohybem */
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.6) 0%, rgba(147, 197, 253, 0.3) 70%, transparent 100%);
+  border-radius: 50%;
+  opacity: 0.25;
+  box-shadow: 0 0 4px rgba(59, 130, 246, 0.2);
+  pointer-events: none; /* Bez hover efektu */
+  animation: floatParticle 20s linear infinite;
+}
+
+/* Animace pro plynulý pohyb částic */
+@keyframes floatParticle {
+  0% {
+    transform: translateY(0px) translateX(0px);
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px);
+  }
+  50% {
+    transform: translateY(-10px) translateX(-15px);
+  }
+  75% {
+    transform: translateY(-30px) translateX(5px);
+  }
+  100% {
+    transform: translateY(0px) translateX(0px);
+  }
+}
+
+/* Cursor trail částice - jemné */
+.trailParticle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, rgba(147, 197, 253, 0.15) 70%, transparent 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(59, 130, 246, 0.2);
+  pointer-events: none;
+  transform-origin: center;
+}
+
+/* Nepoužívané animace odstraněny */
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .particle {
+    width: 4px;
+    height: 4px;
+  }
+  
+  .trailParticle {
+    width: 4px;
+    height: 4px;
+  }
+  
+  .particlesContainer {
+    /* Na mobilech méně částic pro lepší výkon */
+    opacity: 0.6;
+  }
+}
+
+@media (max-width: 480px) {
+  .particle {
+    width: 4px;
+    height: 4px;
+  }
+  
+  .trailParticle {
+    width: 4px;
+    height: 4px;
+  }
+  
+  .particlesContainer {
+    opacity: 0.4;
+  }
+}
