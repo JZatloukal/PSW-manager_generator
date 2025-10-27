@@ -38,5 +38,5 @@ ENV FLASK_ENV=production
 # Exponovat port (Railway používá PORT proměnnou)
 EXPOSE 8080
 
-# Spustit aplikaci na portu z environment proměnné (Railway používá PORT)
-CMD python -c "import os; from backend import create_app; app = create_app(); app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))"
+# Spustit aplikaci pomocí Gunicornu (Railway předá port v proměnné PORT)
+CMD ["sh", "-c", "gunicorn backend.app:app --bind 0.0.0.0:${PORT:-8080}"]

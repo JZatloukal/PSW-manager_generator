@@ -1,11 +1,12 @@
-from backend.security import encrypt_text, decrypt_text
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
+from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
+
 from backend import db
 from backend.models import User, Password
+from backend.security import encrypt_text, decrypt_text
 from backend.validator import validate_email, validate_password  # Import validátorů
-from flask import Blueprint, jsonify
 
 api_bp = Blueprint("api_bp", __name__, url_prefix="/api")
 
@@ -126,7 +127,17 @@ def passwords():
             password_encrypted=encrypt_text(password),
         )
         db.session.add(new_password)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({
+                "success": False,
+                "error": "Záznam již existuje",
+                "message": "Pro tuto službu a uživatelské jméno už heslo existuje.",
+                "status_code": 409
+            }), 409
+
         return jsonify({"id": new_password.id, "success": True, "message": "Heslo bylo uloženo"})
 
 @api_bp.route("/passwords/<int:pid>/reveal", methods=["GET"])
@@ -190,4 +201,3 @@ def refresh():
     identity = get_jwt_identity()
     access_token = create_access_token(identity=identity)
     return jsonify({"success": True, "access_token": access_token}), 200
-

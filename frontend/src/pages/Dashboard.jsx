@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GlobeAltIcon, UserIcon, KeyIcon } from '@heroicons/react/24/solid';
 import styles from "./Dashboard.module.css";
 import { API_URL } from "../config";
@@ -20,6 +20,11 @@ export default function Dashboard() {
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
+  const notificationRef = useRef(showNotification);
+
+  useEffect(() => {
+    notificationRef.current = showNotification;
+  }, [showNotification]);
 
   const nextStep = () => {
     if (wizardStep < 2) {
@@ -72,9 +77,20 @@ export default function Dashboard() {
     fetch(`${API_URL}/passwords`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(res => res.json())
+      .then(async (res) => {
+        const payload = await res.json().catch(() => null);
+        if (!res.ok) {
+          const errorMessage = payload?.message || payload?.error || "Nepodařilo se načíst hesla.";
+          throw new Error(errorMessage);
+        }
+        if (!Array.isArray(payload)) {
+          throw new Error("Neočekávaná odpověď serveru.");
+        }
+        return payload;
+      })
       .then(passwordData => {
         // Mapování dat z backendu na frontend strukturu
+        setMessage("");
         const mappedPasswords = passwordData.map(pwd => ({
           id: pwd.id,
           service: pwd.site,  // backend vrací 'site', frontend očekává 'service'
@@ -82,16 +98,19 @@ export default function Dashboard() {
           password: '*****' // heslo se nezobrazuje v seznamu
         }));
         setPasswords(mappedPasswords);
-        setPasswordsLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        setMessage(err.message);
+        notificationRef.current?.(err.message, "error");
         setPasswords([]);
+      })
+      .finally(() => {
         setPasswordsLoading(false);
       });
   }, []);
 
 
-  const handleAddPassword = (e) => {
+  const handleAddPassword = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
     if (!token) {
@@ -109,41 +128,43 @@ export default function Dashboard() {
 
     setAdding(true);
 
-    fetch(`${API_URL}/passwords`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        site: newService,
-        username: newUsername,
-        password: newPassword,
-      }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.error) {
-          showNotification(data.error, "error");
-        } else {
-          setPasswords(prev => [
-            ...prev,
-            {
-              id: data.id,
-              service: newService,
-              login: newUsername,
-              password: newPassword
-            }
-          ]);
-          resetWizard();
-          showNotification("Heslo bylo úspěšně přidáno", "success");
-        }
-        setAdding(false);
-      })
-      .catch(() => {
-        showNotification("Chyba při přidávání hesla", "error");
-        setAdding(false);
+    try {
+      const response = await fetch(`${API_URL}/passwords`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          site: newService,
+          username: newUsername,
+          password: newPassword,
+        }),
       });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data) {
+        const message = data?.message || data?.error || "Chyba při přidávání hesla";
+        showNotification(message, "error");
+        return;
+      }
+
+      setPasswords(prev => [
+        ...prev,
+        {
+          id: data.id,
+          service: newService,
+          login: newUsername,
+          password: newPassword
+        }
+      ]);
+      resetWizard();
+      showNotification("Heslo bylo úspěšně přidáno", "success");
+    } catch (error) {
+      showNotification("Chyba při přidávání hesla", "error");
+    } finally {
+      setAdding(false);
+    }
   };
 
   const handleCopyPassword = async (id) => {
@@ -158,10 +179,11 @@ export default function Dashboard() {
       const response = await fetch(`${API_URL}/passwords/${id}/reveal`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
       
-      if (data.error) {
-        showNotification(data.error, "error");
+      if (!response.ok || !data || !data.password) {
+        const message = data?.message || data?.error || "Nepodařilo se načíst heslo.";
+        showNotification(message, "error");
         return;
       }
       
@@ -184,14 +206,16 @@ export default function Dashboard() {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
-      if (data.error) {
-        showNotification(data.error, "error");
-      } else {
-        setPasswords(prev => prev.filter(p => p.id !== id));
-        showNotification("Heslo bylo smazáno", "success");
+      if (!res.ok) {
+        const message = data?.message || data?.error || "Chyba při mazání hesla";
+        showNotification(message, "error");
+        return;
       }
+
+      setPasswords(prev => prev.filter(p => p.id !== id));
+      showNotification("Heslo bylo smazáno", "success");
     } catch (err) {
       showNotification("Chyba při mazání hesla", "error");
     }
@@ -405,4 +429,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

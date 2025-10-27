@@ -13,12 +13,17 @@ const Register = () => {
 
   const validatePassword = (password) => {
     const minLength = 8;
-    const hasNumber = /\d/;
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/;
+    const hasNumber = /[0-9]/;
+    const hasSpecialChar = /[^A-Za-z0-9]/;
+    const hasUppercase = /[A-Z]/;
+    const hasLowercase = /[a-z]/;
+
     if (
       password.length < minLength ||
       !hasNumber.test(password) ||
-      !hasSpecialChar.test(password)
+      !hasSpecialChar.test(password) ||
+      !hasUppercase.test(password) ||
+      !hasLowercase.test(password)
     ) {
       return false;
     }
@@ -35,7 +40,7 @@ const Register = () => {
 
     if (!validatePassword(password)) {
       showNotification(
-        "Heslo musí mít alespoň 8 znaků, obsahovat alespoň jedno číslo a jedno speciální písmeno.",
+        "Heslo musí mít alespoň 8 znaků, obsahovat malé i velké písmeno, číslo a speciální znak.",
         "error"
       );
       return;
@@ -48,19 +53,19 @@ const Register = () => {
         body: JSON.stringify({ username, email, password }),
       });
 
-      if (response.ok) {
-        showNotification("Účet byl úspěšně vytvořen. Můžete se přihlásit.", "success");
-        // Vyčištění formuláře po úspěšné registraci
-        setUsername("");
-        setEmail("");
-        setPassword("");
-        setConfirmPassword("");
-      } else {
-        const data = await response.json();
-        // Překlad backend hlášek do češtiny
-        const errorMessage = translateErrorMessage(data.error);
-        showNotification(errorMessage, "error");
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data) {
+        const message = translateErrorMessage(data?.error) || data?.message || "Registrace se nepodařila.";
+        showNotification(message, "error");
+        return;
       }
+
+      showNotification("Účet byl úspěšně vytvořen. Můžete se přihlásit.", "success");
+      // Vyčištění formuláře po úspěšné registraci
+      setUsername("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
     } catch (error) {
       showNotification("Chyba serveru. Zkuste to prosím znovu.", "error");
     }
@@ -77,7 +82,10 @@ const Register = () => {
       "Username must be at least 3 characters": "Uživatelské jméno musí mít alespoň 3 znaky",
       "Password must be at least 8 characters": "Heslo musí mít alespoň 8 znaků",
       "Password must contain at least one number": "Heslo musí obsahovat alespoň jedno číslo",
-      "Password must contain at least one special character": "Heslo musí obsahovat alespoň jeden speciální znak"
+      "Password must contain at least one special character": "Heslo musí obsahovat alespoň jeden speciální znak",
+      "Password must contain at least one uppercase letter": "Heslo musí obsahovat alespoň jedno velké písmeno",
+      "Password must contain at least one lowercase letter": "Heslo musí obsahovat alespoň jedno malé písmeno",
+      "Složitost hesla": "Heslo nesplňuje požadovaná kritéria"
     };
     return translations[error] || error || "Nastala chyba při registraci";
   };

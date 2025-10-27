@@ -16,9 +16,9 @@ Rozhraní je navrženo jednoduše a přehledně, s důrazem na bezpečnost, pou�
 ## Technologie
 
 - **Python (Flask)** – backend aplikace  
-- **SQLite / SQLAlchemy** – databázová vrstva  
+- **PostgreSQL / SQLAlchemy** – databázová vrstva v produkci (lokálně SQLite)  
 - **cryptography (Fernet)** – šifrování a dešifrování hesel  
-- **HTML, CSS, JavaScript** – uživatelské rozhraní  
+- **React + Vite** – uživatelské rozhraní  
 - **pytest** – unit testy hlavních endpointů  
 - **Werkzeug Security** – hashování uživatelských přihlašovacích údajů  
 - **Blueprints a modulární struktura** – přehledné oddělení logiky aplikace  
@@ -59,16 +59,49 @@ Rozhraní je navrženo jednoduše a přehledně, s důrazem na bezpečnost, pou�
 ```bash
 git clone https://github.com/JZatloukal/password-manager.git
 cd password-manager
+
+# Backend
 python -m venv venv
 source venv/bin/activate  # nebo venv\Scripts\activate na Windows
-pip install -r requirements.txt
-python app.py
+pip install -r backend/requirements.txt
+
+# Frontend
+cd frontend
+npm install
+npm run dev
 ```
 
-Aplikace poběží na adrese:
+Backend lze spustit paralelně v dalším terminálu:
+```bash
+source venv/bin/activate  # aktivuj virtuální prostředí
+export FLASK_APP=backend.app
+export FLASK_ENV=development
+flask run --port 5001
 ```
-http://127.0.0.1:5000
-```
+
+Frontend běží standardně na `http://localhost:5173`, backend na `http://127.0.0.1:5001`.
+
+---
+
+## Nasazení na Railway
+
+1. Vytvoř `.env` soubor podle `.env.example` a nastav proměnné v Railway prostředí:  
+   - `DATABASE_URL` (Railway PostgreSQL URL)  
+   - `SECRET_KEY` a `JWT_SECRET_KEY` (libovolné bezpečné řetězce)  
+   - `FERNET_KEY` (vygeneruj například `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`)  
+   - `FLASK_ENV=production`
+2. Připoj GitHub repozitář k Railway a zvol „Deploy from GitHub“.  
+3. V nastavení služby zadej build command:  
+   ```
+   pip install -r backend/requirements.txt && npm --prefix frontend ci && npm --prefix frontend run build
+   ```
+4. Start command nastav na:  
+   ```
+   gunicorn backend.app:app --bind 0.0.0.0:${PORT:-8080}
+   ```
+5. Po deployi otevři přidělenou doménu, frontend build se servíruje přímo Flask backendem.
+
+> Dockerfile v repozitáři je připraven pro případné Docker deploymenty; Railway může využít buď Docker, nebo výše uvedené build/start příkazy.
 
 ---
 

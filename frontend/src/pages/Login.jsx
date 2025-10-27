@@ -21,22 +21,33 @@ const Login = () => {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
-      if (response.ok) {
-        // Načtení uživatelských dat
-        const userResponse = await fetch(`${API_URL}/me`, {
-          headers: { Authorization: `Bearer ${data.access_token}` },
-        });
-        const userData = await userResponse.json();
-        
-        // Přihlášení přes AuthContext
-        login(data.access_token, userData);
-        showNotification("Přihlášení proběhlo úspěšně.", "success");
-      } else {
-        // Překlad backend hlášek do češtiny
-        const errorMessage = translateErrorMessage(data.error);
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data) {
+        const errorMessage = translateErrorMessage(data?.error) || data?.message || "Neplatné přihlašovací údaje";
         showNotification(errorMessage, "error");
+        return;
       }
+
+      if (!data.access_token) {
+        showNotification("Server neposlal přístupový token.", "error");
+        return;
+      }
+
+      // Načtení uživatelských dat
+      const userResponse = await fetch(`${API_URL}/me`, {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+      });
+      const userData = await userResponse.json().catch(() => null);
+
+      if (!userResponse.ok || !userData) {
+        const profileError = userData?.message || userData?.error || "Nepodařilo se načíst profil.";
+        showNotification(profileError, "error");
+        return;
+      }
+
+      // Přihlášení přes AuthContext
+      login(data.access_token, userData);
+      showNotification("Přihlášení proběhlo úspěšně.", "success");
     } catch (error) {
       showNotification("Chyba serveru. Zkuste to prosím znovu.", "error");
     }
